@@ -71,13 +71,15 @@ function onInputChangedListener (originalQuery, suggest) {
         var kinds = [ 'package', 'class', 'case class', 'trait', 'object' ];
         for (var j = 0; j < kinds.length; j++) {
             if (path = entry[kinds[j]]) {
-                description += ' <dim>' + kinds[j] + '</dim>';
+                description = '<dim>' + kinds[j] + '</dim> ' + description;
                 break;
             }
         }
+
+        var url = 'http://www.scala-lang.org/api/current/' + path;
         suggests.push({
-            content: 'http://www.scala-lang.org/api/current/' + path,
-            description: description
+            content: url,
+            description: description + ' <url>' + url + '</url>'
         });
     }
 
