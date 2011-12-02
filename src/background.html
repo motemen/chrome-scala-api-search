@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <script>
+const INDEX_URL = 'http://www.scala-lang.org/api/current/index.js';
+
+var Index = {};
+var packages = [];
+
+chrome.omnibox.setDefaultSuggestion({
+    description: 'Loading Scala API index...'
+});
+
+function onInputChangedListener (originalQuery, suggest) {
+    if (originalQuery.length == 0) return;
+
+    if (originalQuery.match(/[A-Z][a-z]/)) {
+        var query = originalQuery;
+        var nameFilter = function (name) { return name };
+    } else {
+        var query = originalQuery.toLowerCase();
+        var nameFilter = function (name) { return name.toLowerCase() };
+    }
+
+    var results = [];
+
+    for (var package in Index.PACKAGES) {
+        var entries = Index.PACKAGES[package].concat([
+            { name: package, 'package': package.replace(/\//g, '.') + '/package.html' }
+        ]);
+        for (var j = 0, m = entries.length; j < m; j++) {
+            var name = nameFilter(entries[j].name);
+            var pos = name.indexOf(query);
+            if (pos == -1) continue;
+
+            var score = 1.0;
+            if (name[pos - 1] == '.') { // when 'bar' matches to 'foo.BarBaz'
+                score += 0.5;
+                if (pos + query.length == name.length) { // when 'barbaz' matches to 'foo.BarBaz'
+                    score += 0.5;
+                }
+            }
+            if (name[pos].match(/[A-Z]/)) { // when 'baz' matches to 'foo.BarBaz';
+                score += 0.2;
+            } else if (!name.match(/[A-Z]/)) { // matched to a package name
+                score += 0.3;
+            }
+
+            // matched to first "scala."
+            if (pos < 6) {
+                score *= 0.5;
+            }
+
+            results.push([ entries[j], score, name.length ]);
+        }
+    }
+
+    results.sort(function (a, b) { return b[1] - a[1] || b[2] - a[2] });
+
+    var suggests = [];
+    var re = new RegExp(query.replace(/\W/g, '\\$&'), 'ig');
+
+    for (var i = 0; i < 20 && i < results.length; i++) {
+        var entry = results[i][0];
+
+        var path;
+        var description = entry.name.replace(re, '<match>$&</match>');
+
+        var kinds = [ 'package', 'class', 'case class', 'trait', 'object' ];
+        for (var j = 0; j < kinds.length; j++) {
+            if (path = entry[kinds[j]]) {
+                description += ' <dim>' + kinds[j] + '</dim>';
+                break;
+            }
+        }
+        suggests.push({
+            content: 'http://www.scala-lang.org/api/current/' + path,
+            description: description
+        });
+    }
+
+    suggest(suggests);
+}
+
+function setupOnInputListener () {
+    chrome.omnibox.setDefaultSuggestion({
+        description: 'Search Scala API for <match>%s</match>'
+    });
+
+    chrome.omnibox.onInputChanged.addListener(onInputChangedListener);
+
+    chrome.omnibox.onInputEntered.addListener(
+        function(text) {
+            if (text.match(/^http:/)) {
+                chrome.tabs.getSelected(null, function (tab) {
+                    chrome.tabs.update(tab.id, { url: text });
+                });
+            }
+        }
+    );
+}
+
+chrome.omnibox.onInputStarted.addListener(
+    function () {
+        var script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = INDEX_URL;
+        script.onload = setupOnInputListener;
+        document.querySelector('head').appendChild(script);
+    }
+);
+
+  </script>
+</html>

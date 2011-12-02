@@ -1,0 +1,13 @@
+{
+    "name": "Scala API Search",
+    "description": "Search Scala API from scala-lang.org",
+    "version": "0.1",
+    "permissions": [
+        "tabs"
+    ],
+    "omnibox": {
+        "keyword": "scala"
+    },
+    "background_page": "background.html"
+}
+
